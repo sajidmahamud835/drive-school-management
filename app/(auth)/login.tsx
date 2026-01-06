@@ -3,8 +3,10 @@ import { View, Text, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, P
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export default function LoginScreen() {
+    const { login, isLoading } = useAuthStore();
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [email, setEmail] = useState('');
@@ -12,11 +14,15 @@ export default function LoginScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [role, setRole] = useState<'student' | 'instructor' | 'admin'>('student');
 
-    const handleLogin = () => {
-        // Mock login logic
-        if (role === 'student') router.replace('/(student)/dashboard');
-        if (role === 'instructor') router.replace('/(instructor)/dashboard');
-        if (role === 'admin') router.replace('/(admin)/dashboard');
+    const handleLogin = async () => {
+        try {
+            await login(role);
+            if (role === 'student') router.replace('/(student)/dashboard');
+            if (role === 'instructor') router.replace('/(instructor)/dashboard');
+            if (role === 'admin') router.replace('/(admin)/dashboard');
+        } catch (error) {
+            console.error('Login failed', error);
+        }
     };
 
     return (
@@ -89,10 +95,11 @@ export default function LoginScreen() {
 
                         <TouchableOpacity
                             onPress={handleLogin}
-                            className="bg-blue-600 h-14 rounded-xl items-center justify-center flex-row shadow-lg shadow-blue-600/30 mt-4"
+                            disabled={isLoading}
+                            className={`bg-blue-600 h-14 rounded-xl items-center justify-center flex-row shadow-lg shadow-blue-600/30 mt-4 ${isLoading ? 'opacity-70' : ''}`}
                         >
-                            <Text className="text-white font-bold text-lg mr-2">Sign In</Text>
-                            <ArrowRight size={20} color="white" />
+                            <Text className="text-white font-bold text-lg mr-2">{isLoading ? 'Signing In...' : 'Sign In'}</Text>
+                            {!isLoading && <ArrowRight size={20} color="white" />}
                         </TouchableOpacity>
 
                     </View>

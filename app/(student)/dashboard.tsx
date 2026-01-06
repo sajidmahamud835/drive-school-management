@@ -2,9 +2,11 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, Calendar, ChevronRight, Clock, MapPin, User, Star } from 'lucide-react-native';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export default function StudentDashboard() {
     const insets = useSafeAreaInsets();
+    const { user } = useAuthStore();
 
     return (
         <View className="flex-1 bg-gray-50 dark:bg-slate-900">
@@ -15,11 +17,15 @@ export default function StudentDashboard() {
                     <View className="flex-row justify-between items-center mb-6">
                         <View className="flex-row items-center">
                             <View className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full items-center justify-center mr-3">
-                                <User size={24} className="text-blue-600 dark:text-blue-400" color="#2563eb" />
+                                {user?.avatar ? (
+                                    <Image source={{ uri: user.avatar }} className="w-12 h-12 rounded-full" />
+                                ) : (
+                                    <User size={24} className="text-blue-600 dark:text-blue-400" color="#2563eb" />
+                                )}
                             </View>
                             <View>
                                 <Text className="text-gray-500 dark:text-gray-400 text-sm">Welcome back,</Text>
-                                <Text className="text-xl font-bold text-gray-900 dark:text-white">Alex Johnson</Text>
+                                <Text className="text-xl font-bold text-gray-900 dark:text-white">{user?.name || 'Student'}</Text>
                             </View>
                         </View>
                         <TouchableOpacity className="w-10 h-10 bg-gray-100 dark:bg-slate-700 rounded-full items-center justify-center">
@@ -32,7 +38,7 @@ export default function StudentDashboard() {
                     <View className="flex-row gap-3">
                         <View className="flex-1 bg-blue-600 p-4 rounded-2xl shadow-lg shadow-blue-600/20">
                             <Text className="text-blue-100 text-xs mb-1">Hours Completed</Text>
-                            <Text className="text-3xl font-bold text-white">12<Text className="text-lg opacity-80">/40</Text></Text>
+                            <Text className="text-3xl font-bold text-white">{user?.progress || 0}<Text className="text-lg opacity-80">/40</Text></Text>
                         </View>
                         <View className="flex-1 bg-white dark:bg-slate-700 p-4 rounded-2xl border border-gray-100 dark:border-slate-600 shadow-sm">
                             <Text className="text-gray-500 dark:text-gray-400 text-xs mb-1">Upcoming</Text>
