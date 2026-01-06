@@ -1,12 +1,9 @@
 import { create } from 'zustand';
+import { getProfile, upsertProfile } from '../lib/api/profiles';
+import { Profile } from '../lib/supabase';
 
-interface UserProfile {
-    id: string;
-    name: string;
-    email: string;
-    role: 'student' | 'instructor' | 'admin';
-    avatar?: string;
-    // Student Specific
+interface UserProfile extends Profile {
+    // Extended fields for UI display
     progress?: number;
     upcomingLesson?: {
         date: string;
@@ -15,72 +12,95 @@ interface UserProfile {
     };
     // Instructor Specific
     totalHours?: number;
-    rating?: number;
 }
 
 interface AuthState {
     user: UserProfile | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (role: 'student' | 'instructor' | 'admin') => Promise<void>;
+    error: string | null;
+
+    // Actions
+    fetchProfile: (clerkId: string) => Promise<void>;
+    syncClerkUser: (clerkUser: { id: string; firstName?: string | null; lastName?: string | null; emailAddresses?: { emailAddress: string }[]; imageUrl?: string }) => Promise<void>;
     logout: () => void;
     updateProfile: (updates: Partial<UserProfile>) => void;
+    clearError: () => void;
 }
 
-// Mock Data
-const MOCK_USERS: Record<string, UserProfile> = {
-    student: {
-        id: 's1',
-        name: 'Alex Johnson',
-        email: 'alex.student@example.com',
-        role: 'student',
-        progress: 35,
-        upcomingLesson: {
-            date: '2024-03-20',
-            time: '14:00',
-            instructor: 'Mike Wilson'
-        }
-    },
-    instructor: {
-        id: 'i1',
-        name: 'Mike Wilson',
-        email: 'mike.instructor@drive.com',
-        role: 'instructor',
-        totalHours: 1250,
-        rating: 4.9
-    },
-    admin: {
-        id: 'a1',
-        name: 'Sarah Connor',
-        email: 'sarah.admin@drive.com',
-        role: 'admin'
-    }
-};
-
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     isAuthenticated: false,
     isLoading: false,
+    error: null,
 
-    login: async (role) => {
-        set({ isLoading: true });
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    fetchProfile: async (clerkId: string) => {
+        set({ isLoading: true, error: null });
 
-        set({
-            user: MOCK_USERS[role],
-            isAuthenticated: true,
-            isLoading: false
-        });
+        try {
+            const profile = await getProfile(clerkId);
+
+            if (profile) {
+                set({
+                    user: profile,
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            } else {
+                set({ isLoading: false });
+            }
+        } catch (error) {
+            set({
+                error: 'Failed to fetch profile',
+                isLoading: false
+            });
+        }
+    },
+
+    syncClerkUser: async (clerkUser) => {
+        set({ isLoading: true, error: null });
+
+        try {
+            const profileData = {
+                clerk_id: clerkUser.id,
+                name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'User',
+                email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
+                avatar_url: clerkUser.imageUrl,
+                role: 'student' as const, // Default role for new users
+            };
+
+            const profile = await upsertProfile(profileData);
+
+            if (profile) {
+                set({
+                    user: profile,
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            } else {
+                throw new Error('Failed to sync profile');
+            }
+        } catch (error) {
+            set({
+                error: 'Failed to sync user profile',
+                isLoading: false
+            });
+        }
     },
 
     logout: () => {
-        set({ user: null, isAuthenticated: false });
+        set({
+            user: null,
+            isAuthenticated: false,
+            error: null
+        });
     },
 
     updateProfile: (updates) => {
         set((state) => ({
-            user: state.user ? { ...state.user, ...updates } : null
+            user: state.user ? { ...state.user, ...updates } : null,
         }));
-    }
+    },
+
+    clearError: () => set({ error: null }),
 }));
